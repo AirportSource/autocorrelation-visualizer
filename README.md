@@ -2,13 +2,13 @@
 
 An interactive tool for building intuition about the autocorrelation coefficient (ACF) in time series analysis.
 Objective : Help self-learners to develop an intuition of how ACF behave and their possible interpretation.
-Based on the book Forecasting Principles and Practices 3rd edition by Rob J Hyndman and George Athanasopoulos.
+Based on the book *Forecasting Principles and Practices*, 3rd edition by Rob J Hyndman and George Athanasopoulos, specifically Chapter 4 on Time Series Features
 Programming Language associated (but interpretation remains the same) : R programming.
 
 
 ## Disclaimer
-Initial implementation was generated with the assistance of an AI for HTML coding and then humanely reviewed and revised for statistical correctness.
-Any correction or addition is very welcome. 
+Initial implementation was generated with the assistance of an AI for coding (stack : HTML/CSS and Javascript, charts have been obtained via Canvas official API) and then humanely reviewed and revised for statistical correctness.
+Corrections or additions are very welcome. Feel free to reach out. 
 
 ## Overview
 
