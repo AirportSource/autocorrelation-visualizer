@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ACF — Visualisation Interactive</title>
+<title>ACF — Interactive Visualisation</title>
+<meta name="description" content="Interactive tool to build intuition for the autocorrelation coefficient in time series.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
-
   :root {
     --bg: #0a0e1a;
     --panel: #111827;
@@ -14,9 +16,14 @@
     --accent: #38bdf8;
     --green: #34d399;
     --red: #f87171;
+    --orange: #fb923c;
     --yellow: #fbbf24;
+    --grey: #94a3b8;
     --text: #e2e8f0;
     --muted: #64748b;
+
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display: 'Syne', system-ui, sans-serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,13 +31,19 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Syne', sans-serif;
+    font-family: var(--display);
     min-height: 100vh;
-    padding: 2rem;
+    padding: 2rem 1.25rem 3rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    max-width: 1100px;
+    margin: 0 auto 2rem;
   }
 
   h1 {
-    font-size: 2rem;
+    font-size: clamp(1.5rem, 4vw, 2rem);
     font-weight: 800;
     letter-spacing: -0.03em;
     margin-bottom: 0.25rem;
@@ -39,9 +52,8 @@
 
   .subtitle {
     color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--mono);
     font-size: 0.8rem;
-    margin-bottom: 2rem;
   }
 
   .grid {
@@ -57,29 +69,36 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 1.5rem;
+    min-width: 0;
   }
 
   .card.full { grid-column: 1 / -1; }
 
   .card-title {
     font-size: 0.7rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--mono);
     color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
   }
 
-  /* Slider control */
+  .note {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  /* ---- Controls ---- */
   .slider-row {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 1.5rem;
   }
 
   .slider-label {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--mono);
     font-size: 0.85rem;
     color: var(--muted);
     white-space: nowrap;
@@ -87,7 +106,9 @@
 
   input[type=range] {
     flex: 1;
+    min-width: 0;
     -webkit-appearance: none;
+    appearance: none;
     height: 4px;
     background: var(--border);
     border-radius: 2px;
@@ -96,6 +117,7 @@
 
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -103,55 +125,97 @@
     cursor: pointer;
     transition: transform 0.1s;
   }
-
+  input[type=range]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
   input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+  input[type=range]:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
 
   .acf-value {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--mono);
     font-size: 1.4rem;
     font-weight: 700;
-    min-width: 60px;
+    min-width: 68px;
     text-align: right;
+    font-variant-numeric: tabular-nums;
     transition: color 0.3s;
   }
 
-  /* Series canvas */
-  canvas {
-    width: 100%;
-    height: 140px;
-    display: block;
+  .readout {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+  }
+  .readout b { color: var(--text); font-weight: 700; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.25rem 0;
+  }
+
+  .btn {
+    padding: 0.4rem 0.9rem;
     border-radius: 6px;
-  }
-
-  /* Interpretation badge */
-  .badge {
-    display: inline-block;
-    padding: 0.3rem 0.8rem;
-    border-radius: 99px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--mono);
     font-size: 0.75rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
     font-weight: 700;
-    margin-top: 1rem;
-    transition: all 0.4s;
   }
 
-  /* Lag scatter */
+  .spacer { flex: 1; min-width: 0; }
+
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .seg-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .seg .btn { padding: 0.35rem 0.6rem; }
+
+  /* ---- Canvases ---- */
+  canvas { display: block; width: 100%; }
+  #seriesCanvas { height: 150px; }
+  #seasonCanvas { height: 130px; }
+
+  /* ---- Interpretation ---- */
   .scatter-wrap {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
     align-items: flex-start;
+    margin-top: 1.5rem;
   }
 
-  .scatter-canvas {
-    width: 160px;
-    height: 160px;
+  #scatterCanvas {
+    width: 170px;
+    height: 170px;
     flex-shrink: 0;
   }
 
-  .interpretation {
-    flex: 1;
-    padding-top: 0.5rem;
-  }
+  .interpretation { flex: 1; min-width: 0; }
 
   .interp-title {
     font-size: 1rem;
@@ -161,415 +225,691 @@
   }
 
   .interp-text {
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     color: var(--muted);
-    line-height: 1.6;
+    line-height: 1.65;
   }
-
   .interp-text strong { color: var(--text); }
+  .interp-text p + p { margin-top: 0.75rem; }
 
-  /* ACF bar chart */
-  .acf-bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 4px;
-    height: 100px;
-    padding-top: 10px;
-    position: relative;
-  }
-
-  .acf-bar-wrap {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+  .badge {
+    display: inline-flex;
     align-items: center;
-    height: 100%;
-    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 99px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-top: 1rem;
+    border: 1px solid transparent;
+    transition: background 0.4s, color 0.4s, border-color 0.4s;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  /* ---- ACF bar plot ---- */
+  .acf-plot {
     position: relative;
+    height: 132px;
   }
-
-  .acf-bar {
-    width: 100%;
-    border-radius: 3px 3px 0 0;
-    transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s;
-    min-height: 2px;
-    position: relative;
-  }
-
-  .acf-bar-neg {
-    width: 100%;
-    border-radius: 0 0 3px 3px;
-    transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s;
-    min-height: 2px;
-  }
-
-  .bar-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.6rem;
-    color: var(--muted);
-    margin-top: 4px;
-  }
-
-  .zero-line {
+  .acf-band {
     position: absolute;
     left: 0; right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(148, 163, 184, 0.07);
+    border-top: 1px dashed rgba(148, 163, 184, 0.35);
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.35);
+    pointer-events: none;
+  }
+  .acf-zero {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
     height: 1px;
     background: var(--border);
   }
-
-  .tabs {
+  .acf-cols, .acf-lags {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    gap: 5px;
   }
-
-  .tab {
-    padding: 0.4rem 1rem;
-    border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    transition: all 0.2s;
-  }
-
-  .tab.active {
+  .acf-cols { position: absolute; inset: 0; }
+  .acf-col { position: relative; flex: 1; min-width: 0; }
+  .acf-bar {
+    position: absolute;
+    left: 0; right: 0;
     background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
+    transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s;
+  }
+  .acf-bar.pos { bottom: 50%; border-radius: 3px 3px 0 0; }
+  .acf-bar.neg { top: 50%; border-radius: 0 0 3px 3px; }
+  .acf-tick {
+    position: absolute;
+    left: -2px; right: -2px;
+    height: 2px;
+    background: var(--text);
+    opacity: 0.55;
+    transition: bottom 0.4s, top 0.4s;
+  }
+  .acf-lags { margin-top: 6px; }
+  .acf-lag {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--muted);
   }
 
-  header {
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-top: 1rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+  .swatch { width: 12px; height: 8px; border-radius: 2px; background: var(--accent); flex-shrink: 0; }
+  .swatch.tick { height: 2px; background: var(--text); opacity: 0.55; }
+  .swatch.band { height: 10px; background: rgba(148,163,184,0.12); border-top: 1px dashed rgba(148,163,184,0.5); border-bottom: 1px dashed rgba(148,163,184,0.5); border-radius: 0; }
+
+  footer {
     max-width: 1100px;
-    margin: 0 auto 2rem;
+    margin: 2rem auto 0;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  footer a { color: var(--muted); }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 860px) {
+    body { padding: 1.5rem 1rem 2.5rem; }
+    .grid { grid-template-columns: 1fr; gap: 1rem; }
+    .card { padding: 1.15rem; }
+    .scatter-wrap { flex-direction: column; gap: 1rem; }
+    #scatterCanvas { width: 100%; max-width: 220px; height: 200px; align-self: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Autocorrélation — Visualisation</h1>
-  <p class="subtitle">feat_acf · séries temporelles · FPP3</p>
+  <h1>Autocorrelation — Interactive Visualisation</h1>
+  <p class="subtitle"> Time Series Analysis</p>
+  <p class="subtitle"> Time Series Features - FPP3 Chapter 5 Intuition</p>
 </header>
 
-<div class="grid">
+<main class="grid">
 
   <!-- Main interactive card -->
-  <div class="card full">
-    <div class="card-title">acf1 — Joue avec le coefficient</div>
+  <section class="card full">
+    <h2 class="card-title">acf1 — move the coefficient</h2>
 
     <div class="slider-row">
-      <span class="slider-label">acf1 =</span>
-      <input type="range" id="acfSlider" min="-99" max="99" value="80" step="1">
-      <span class="acf-value" id="acfDisplay">0.80</span>
+      <label class="slider-label" for="acfSlider">acf1 =</label>
+      <input type="range" id="acfSlider" min="-95" max="95" value="80" step="1">
+      <output class="acf-value" id="acfDisplay" for="acfSlider">0.80</output>
+    </div>
+    <p class="readout">
+      True coefficient <b id="phiReadout">0.80</b> ·
+      estimated from this sample <b id="sampleReadout">—</b> ·
+      n = <b id="nReadout">120</b>
+    </p>
+
+    <div class="controls">
+      <button class="btn preset" type="button" aria-pressed="true" data-preset="0.9">Strong persistence</button>
+      <button class="btn preset" type="button" aria-pressed="false" data-preset="0">White noise</button>
+      <button class="btn preset" type="button" aria-pressed="false" data-preset="-0.8">Oscillation</button>
+      <button class="btn preset" type="button" aria-pressed="false" data-preset="0.4">Moderate</button>
+
+      <span class="spacer"></span>
+
+      <span class="seg" role="group" aria-label="Sample size">
+        <span class="seg-label">n</span>
+        <button class="btn size" type="button" aria-pressed="false" data-n="60">60</button>
+        <button class="btn size" type="button" aria-pressed="true" data-n="120">120</button>
+        <button class="btn size" type="button" aria-pressed="false" data-n="240">240</button>
+      </span>
+      <button class="btn" type="button" id="reseed">Draw new sample</button>
     </div>
 
-    <div class="tabs">
-      <button class="tab active" onclick="setPreset(0.9, this)">Persistance forte</button>
-      <button class="tab" onclick="setPreset(0.0, this)">Bruit blanc</button>
-      <button class="tab" onclick="setPreset(-0.8, this)">Oscillation</button>
-      <button class="tab" onclick="setPreset(0.4, this)">Modéré</button>
-    </div>
+    <canvas id="seriesCanvas" role="img" aria-label="Simulated time series for the chosen coefficient"></canvas>
 
-    <canvas id="seriesCanvas"></canvas>
-
-    <div class="scatter-wrap" style="margin-top:1.5rem">
-      <canvas class="scatter-canvas" id="scatterCanvas"></canvas>
-      <div class="interpretation">
-        <div class="interp-title" id="interpTitle">Forte persistance</div>
-        <div class="interp-text" id="interpText">
-          Chaque valeur est fortement liée à la précédente.<br><br>
-          <strong>Si ce trimestre est haut → le suivant sera probablement haut aussi.</strong><br><br>
-          Série "lisse", avec inertie. Attention : acf1 proche de 1 peut aussi signaler une non-stationnarité.
-        </div>
-        <span class="badge" id="interpBadge">🔵 Mémoire positive forte</span>
+    <div class="scatter-wrap">
+      <canvas id="scatterCanvas" role="img" aria-label="Scatter plot of each value against the previous one"></canvas>
+      <div class="interpretation" aria-live="polite">
+        <h3 class="interp-title" id="interpTitle">Strong persistence</h3>
+        <div class="interp-text" id="interpText"></div>
+        <span class="badge" id="interpBadge"><span class="dot"></span><span id="badgeText">Strong positive memory</span></span>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- ACF bars -->
-  <div class="card">
-    <div class="card-title">Profil ACF complet (lags 1→10)</div>
-    <div class="acf-bars" id="acfBars">
-      <div class="zero-line" id="zeroLine"></div>
+  <section class="card">
+    <h2 class="card-title">ACF profile (lags 1–10)</h2>
+
+    <div class="acf-plot">
+      <div class="acf-band" id="acfBand"></div>
+      <div class="acf-zero"></div>
+      <div class="acf-cols" id="acfCols"></div>
     </div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--muted);margin-top:0.5rem">
-      Plus les barres décroissent lentement → plus la mémoire est longue (acf10 élevé)
+    <div class="acf-lags" id="acfLags"></div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="swatch"></span>Estimated from the sample</span>
+      <span class="legend-item"><span class="swatch tick"></span>Theoretical value, acf1<sup>k</sup></span>
+      <span class="legend-item"><span class="swatch band"></span>95% white-noise bounds</span>
     </div>
-  </div>
+
+    <p class="note" style="margin-top:0.9rem">
+      The slower the bars decay, the longer the memory. Bars inside the shaded band are
+      indistinguishable from white noise at this sample size.
+    </p>
+  </section>
 
   <!-- Season ACF -->
-  <div class="card">
-    <div class="card-title">season_acf1 — Mémoire saisonnière (lag 4)</div>
-    <canvas id="seasonCanvas" style="height:120px"></canvas>
-    <div style="margin-top:1rem">
-      <div class="slider-row">
-        <span class="slider-label">season_acf1 =</span>
-        <input type="range" id="seasonSlider" min="0" max="99" value="70" step="1">
-        <span class="acf-value" id="seasonDisplay" style="color:var(--green)">0.70</span>
-      </div>
-      <div class="interp-text" id="seasonInterp">
-        Forte saisonnalité : T1 ressemble à T1 de l'année précédente, T4 ressemble à T4, etc.
-      </div>
-    </div>
-  </div>
+  <section class="card">
+    <h2 class="card-title">season_acf1 — seasonal memory (lag 4)</h2>
 
-</div>
+    <canvas id="seasonCanvas" role="img" aria-label="Simulated quarterly series with seasonal memory"></canvas>
+
+    <div style="margin-top:1.1rem">
+      <div class="slider-row">
+        <label class="slider-label" for="seasonSlider">season_acf1 =</label>
+        <input type="range" id="seasonSlider" min="0" max="95" value="70" step="1">
+        <output class="acf-value" id="seasonDisplay" for="seasonSlider" style="color:var(--green)">0.70</output>
+      </div>
+      <p class="readout">
+        True coefficient <b id="seasonPhiReadout">0.70</b> ·
+        estimated at lag 4 <b id="seasonSampleReadout">—</b>
+      </p>
+      <p class="interp-text" id="seasonInterp" style="margin-top:0.9rem" aria-live="polite"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Series are simulated, not real data: an AR(1) process for acf1, a seasonal AR process at lag 4 for season_acf1.
+  Both are scaled to unit variance, so the vertical axis is comparable across every setting.
+  Reload or draw a new sample to see how much the estimate moves for a fixed true coefficient.
+</footer>
 
 <script>
-// ---- Utilities ----
-function lerp(a, b, t) { return a + (b - a) * t; }
+'use strict';
 
-function generateAR1(n, phi, seed=42) {
-  let rng = seed;
-  function rand() {
-    rng = (rng * 1664525 + 1013904223) & 0xffffffff;
-    return ((rng >>> 0) / 0xffffffff) * 2 - 1;
-  }
-  const series = [rand() * 2];
-  for (let i = 1; i < n; i++) {
-    series.push(phi * series[i-1] + Math.sqrt(1 - phi*phi) * rand() * 2);
+/* ------------------------------------------------------------------
+   State
+------------------------------------------------------------------ */
+const state = {
+  phi: 0.80,        // true lag-1 coefficient
+  seasonPhi: 0.70,  // true lag-4 coefficient
+  n: 120,           // sample size
+  seed: 42
+};
+
+const SEASON_N = 32;   // 8 years of quarters — long enough to read, short enough to see
+const Y_LIMIT = 3.2;   // fixed vertical scale, in standard deviations
+const MAX_LAG = 10;
+const HALF_H = 66;     // half-height of the ACF plot, in px
+
+/* ------------------------------------------------------------------
+   Random numbers: seeded, so the picture only changes when you ask
+------------------------------------------------------------------ */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Box–Muller: proper Gaussian innovations rather than uniform ones
+function gaussianFrom(rand) {
+  let u = 0, v = 0;
+  while (u === 0) u = rand();
+  while (v === 0) v = rand();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/* ------------------------------------------------------------------
+   Processes
+------------------------------------------------------------------ */
+// y[t] = phi * y[t-1] + sqrt(1 - phi^2) * e[t]  → stationary, unit variance
+function generateAR1(n, phi, seed) {
+  const rand = mulberry32(seed);
+  const g = () => gaussianFrom(rand);
+  const sd = Math.sqrt(Math.max(0, 1 - phi * phi));
+  const series = [g()];
+  for (let i = 1; i < n; i++) series.push(phi * series[i - 1] + sd * g());
+  return series;
+}
+
+// y[t] = phi * y[t-4] + sqrt(1 - phi^2) * e[t]  → memory at lag 4, none at lag 1
+function generateSeasonalAR(n, phi, seed, period = 4) {
+  const rand = mulberry32(seed);
+  const g = () => gaussianFrom(rand);
+  const sd = Math.sqrt(Math.max(0, 1 - phi * phi));
+  const series = [];
+  for (let i = 0; i < n; i++) {
+    series.push(i < period ? g() : phi * series[i - period] + sd * g());
   }
   return series;
 }
 
-function normalize(arr) {
-  const mn = Math.min(...arr), mx = Math.max(...arr);
-  return arr.map(v => (v - mn) / (mx - mn));
+// Sample ACF, same estimator R uses: divide by n and the full-sample variance
+function computeACF(series, maxLag) {
+  const n = series.length;
+  const mean = series.reduce((a, b) => a + b, 0) / n;
+  const variance = series.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+  const out = [];
+  for (let lag = 1; lag <= maxLag; lag++) {
+    let cov = 0;
+    for (let i = lag; i < n; i++) cov += (series[i] - mean) * (series[i - lag] - mean);
+    out.push(variance === 0 ? 0 : cov / (n * variance));
+  }
+  return out;
 }
 
-// ---- Series Canvas ----
-function drawSeries(canvas, series, color) {
+/* ------------------------------------------------------------------
+   Canvas helpers — draw in CSS pixels, stay sharp on retina
+------------------------------------------------------------------ */
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = Math.max(1, Math.round(w * dpr));
+  canvas.height = Math.max(1, Math.round(h * dpr));
   const ctx = canvas.getContext('2d');
-  const W = canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-  const H = canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-  ctx.clearRect(0, 0, W, H);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
 
-  const norm = normalize(series);
-  const pad = 20;
-  const w = (W - 2*pad) / (norm.length - 1);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-  // grid lines
-  ctx.strokeStyle = '#1e293b';
+/* ------------------------------------------------------------------
+   Series plot — fixed scale so amplitudes stay comparable
+------------------------------------------------------------------ */
+function drawSeries(canvas, series, color, opts = {}) {
+  const { ctx, w, h } = setupCanvas(canvas);
+  const padX = 16, padY = 12;
+  const plotW = w - 2 * padX;
+  const plotH = h - 2 * padY;
+  const x = i => padX + (plotW * i) / (series.length - 1);
+  const y = v => padY + plotH * (1 - (clamp(v, -Y_LIMIT, Y_LIMIT) + Y_LIMIT) / (2 * Y_LIMIT));
+  const zeroY = y(0);
+
+  // horizontal guides
   ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad + (H - 2*pad) * i / 4;
-    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W-pad, y); ctx.stroke();
+  for (const v of [-3, -1.5, 1.5, 3]) {
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.9)';
+    ctx.beginPath();
+    ctx.moveTo(padX, y(v));
+    ctx.lineTo(w - padX, y(v));
+    ctx.stroke();
   }
 
-  // gradient fill
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, color + '40');
-  grad.addColorStop(1, color + '00');
-  ctx.beginPath();
-  ctx.moveTo(pad, H - pad - norm[0] * (H - 2*pad));
-  for (let i = 1; i < norm.length; i++) {
-    ctx.lineTo(pad + i*w, H - pad - norm[i] * (H - 2*pad));
+  // seasonal guides every `period` observations
+  if (opts.period) {
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.14)';
+    for (let i = 0; i < series.length; i += opts.period) {
+      ctx.beginPath();
+      ctx.moveTo(x(i), padY);
+      ctx.lineTo(x(i), h - padY);
+      ctx.stroke();
+    }
   }
-  ctx.lineTo(pad + (norm.length-1)*w, H-pad);
-  ctx.lineTo(pad, H-pad);
+
+  // zero line, brighter than the rest
+  ctx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
+  ctx.beginPath();
+  ctx.moveTo(padX, zeroY);
+  ctx.lineTo(w - padX, zeroY);
+  ctx.stroke();
+
+  // fill between the line and zero
+  ctx.beginPath();
+  ctx.moveTo(x(0), zeroY);
+  for (let i = 0; i < series.length; i++) ctx.lineTo(x(i), y(series[i]));
+  ctx.lineTo(x(series.length - 1), zeroY);
   ctx.closePath();
-  ctx.fillStyle = grad;
+  ctx.fillStyle = color + '1f';
   ctx.fill();
 
-  // line
+  // the line itself
   ctx.beginPath();
-  ctx.moveTo(pad, H - pad - norm[0] * (H - 2*pad));
-  for (let i = 1; i < norm.length; i++) {
-    ctx.lineTo(pad + i*w, H - pad - norm[i] * (H - 2*pad));
-  }
+  ctx.moveTo(x(0), y(series[0]));
+  for (let i = 1; i < series.length; i++) ctx.lineTo(x(i), y(series[i]));
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2 * window.devicePixelRatio;
+  ctx.lineWidth = 2;
   ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   ctx.stroke();
+
+  // mark the first observation of each cycle
+  if (opts.period) {
+    ctx.fillStyle = color;
+    for (let i = 0; i < series.length; i += opts.period) {
+      ctx.beginPath();
+      ctx.arc(x(i), y(series[i]), 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
-// ---- Scatter Canvas ----
+/* ------------------------------------------------------------------
+   Lag-1 scatter, with the fitted line whose slope is the estimate
+------------------------------------------------------------------ */
 function drawScatter(canvas, series, color) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-  const H = canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-  ctx.clearRect(0, 0, W, H);
+  const { ctx, w, h } = setupCanvas(canvas);
+  const pad = 20;
+  const plotW = w - 2 * pad;
+  const plotH = h - 2 * pad;
+  const sx = v => pad + plotW * (clamp(v, -Y_LIMIT, Y_LIMIT) + Y_LIMIT) / (2 * Y_LIMIT);
+  const sy = v => pad + plotH * (1 - (clamp(v, -Y_LIMIT, Y_LIMIT) + Y_LIMIT) / (2 * Y_LIMIT));
 
-  const pad = 20 * window.devicePixelRatio;
-  const mn = Math.min(...series), mx = Math.max(...series);
-  const scale = v => (v - mn) / (mx - mn);
-
-  // axes
-  ctx.strokeStyle = '#1e293b';
+  // axes through the origin
+  ctx.strokeStyle = 'rgba(30, 41, 59, 1)';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, H-pad); ctx.lineTo(W-pad, H-pad); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pad, sy(0)); ctx.lineTo(w - pad, sy(0));
+  ctx.moveTo(sx(0), pad); ctx.lineTo(sx(0), h - pad);
+  ctx.stroke();
+
+  // least-squares line through the (previous, current) pairs
+  const xs = series.slice(0, -1);
+  const ys = series.slice(1);
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < xs.length; i++) {
+    sxy += (xs[i] - mx) * (ys[i] - my);
+    sxx += (xs[i] - mx) ** 2;
+  }
+  if (sxx > 0) {
+    const slope = sxy / sxx;
+    const intercept = my - slope * mx;
+    const line = v => slope * v + intercept;
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx(-Y_LIMIT), sy(line(-Y_LIMIT)));
+    ctx.lineTo(sx(Y_LIMIT), sy(line(Y_LIMIT)));
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // the pairs themselves
+  ctx.fillStyle = color + 'aa';
+  for (let i = 0; i < xs.length; i++) {
+    ctx.beginPath();
+    ctx.arc(sx(xs[i]), sy(ys[i]), 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // axis labels
   ctx.fillStyle = '#64748b';
-  ctx.font = `${9 * window.devicePixelRatio}px JetBrains Mono`;
-  ctx.fillText('t-1', pad + 2, H - 4);
-  ctx.fillText('t', W - pad - 10, H - pad - 4);
-
-  // dots
-  for (let i = 1; i < series.length; i++) {
-    const x = pad + scale(series[i-1]) * (W - 2*pad);
-    const y = H - pad - scale(series[i]) * (H - 2*pad);
-    ctx.beginPath();
-    ctx.arc(x, y, 3 * window.devicePixelRatio, 0, Math.PI*2);
-    ctx.fillStyle = color + 'aa';
-    ctx.fill();
-  }
+  ctx.font = '9px ' + getComputedStyle(document.body).getPropertyValue('--mono');
+  ctx.fillText('value at t−1', pad + 2, h - 6);
+  ctx.save();
+  ctx.translate(10, pad + 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'right';
+  ctx.fillText('value at t', 0, 0);
+  ctx.restore();
 }
 
-// ---- ACF Bars ----
-function computeACF(series, maxLag) {
-  const n = series.length;
-  const mean = series.reduce((a,b) => a+b, 0) / n;
-  const variance = series.reduce((a,b) => a + (b-mean)**2, 0) / n;
-  const acfs = [];
-  for (let lag = 1; lag <= maxLag; lag++) {
-    let cov = 0;
-    for (let i = lag; i < n; i++) cov += (series[i] - mean) * (series[i-lag] - mean);
-    acfs.push(cov / (n * variance));
-  }
-  return acfs;
+/* ------------------------------------------------------------------
+   ACF bar plot: sample bars, theoretical ticks, significance band
+------------------------------------------------------------------ */
+const acfCols = document.getElementById('acfCols');
+const acfLags = document.getElementById('acfLags');
+
+// build the columns once, then only update heights
+const bars = [];
+for (let lag = 1; lag <= MAX_LAG; lag++) {
+  const col = document.createElement('div');
+  col.className = 'acf-col';
+
+  const pos = document.createElement('div');
+  pos.className = 'acf-bar pos';
+  const neg = document.createElement('div');
+  neg.className = 'acf-bar neg';
+  const tick = document.createElement('div');
+  tick.className = 'acf-tick';
+
+  col.append(pos, neg, tick);
+  acfCols.appendChild(col);
+  bars.push({ pos, neg, tick });
+
+  const label = document.createElement('div');
+  label.className = 'acf-lag';
+  label.textContent = lag;
+  acfLags.appendChild(label);
 }
 
-function drawACFBars(series) {
-  const container = document.getElementById('acfBars');
-  container.innerHTML = '<div class="zero-line" id="zeroLine"></div>';
-  const acfs = computeACF(series, 10);
-  const maxAbs = 1;
-  const totalH = 100;
+function drawACFBars(series, phi, color) {
+  const acfs = computeACF(series, MAX_LAG);
+
+  // 95% bounds for a white-noise process
+  const bound = 1.96 / Math.sqrt(series.length);
+  const band = document.getElementById('acfBand');
+  band.style.height = Math.min(HALF_H * 2, bound * 2 * HALF_H) + 'px';
 
   acfs.forEach((v, i) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'acf-bar-wrap';
-    wrap.style.justifyContent = 'center';
+    const { pos, neg, tick } = bars[i];
+    const clamped = clamp(v, -1, 1);
+    pos.style.height = Math.max(0, clamped) * HALF_H + 'px';
+    neg.style.height = Math.max(0, -clamped) * HALF_H + 'px';
+    pos.style.background = color;
+    neg.style.background = color;
 
-    const posH = Math.max(0, v) / maxAbs * (totalH/2);
-    const negH = Math.max(0, -v) / maxAbs * (totalH/2);
-
-    const top = document.createElement('div');
-    top.className = 'acf-bar';
-    top.style.height = posH + 'px';
-    top.style.background = v > 0 ? '#38bdf8' : 'transparent';
-
-    const bot = document.createElement('div');
-    bot.className = 'acf-bar-neg';
-    bot.style.height = negH + 'px';
-    bot.style.background = v < 0 ? '#f87171' : 'transparent';
-
-    const lbl = document.createElement('div');
-    lbl.className = 'bar-label';
-    lbl.textContent = i + 1;
-
-    wrap.appendChild(top);
-    wrap.appendChild(bot);
-    wrap.appendChild(lbl);
-    container.appendChild(wrap);
+    const theoretical = clamp(Math.pow(phi, i + 1), -1, 1);
+    const offset = Math.abs(theoretical) * HALF_H;
+    if (theoretical >= 0) {
+      tick.style.bottom = `calc(50% + ${offset}px)`;
+      tick.style.top = 'auto';
+    } else {
+      tick.style.top = `calc(50% + ${offset}px)`;
+      tick.style.bottom = 'auto';
+    }
   });
 }
 
-// ---- Season canvas ----
-function drawSeasonSeries(phi) {
-  const canvas = document.getElementById('seasonCanvas');
-  const n = 20;
-  // Generate series with seasonal pattern
-  const series = [];
-  for (let i = 0; i < n; i++) {
-    const season = Math.sin(2 * Math.PI * i / 4) * 2;
-    const noise = (Math.random() - 0.5) * (1 - phi) * 4;
-    series.push(season * phi + noise);
-  }
-  drawSeries(canvas, series, '#34d399');
-}
-
-// ---- Interpretation ----
+/* ------------------------------------------------------------------
+   Interpretation copy
+------------------------------------------------------------------ */
 function getInterpretation(phi) {
   if (phi > 0.7) return {
-    title: 'Forte persistance',
-    text: 'Chaque valeur est fortement liée à la précédente.\n\n<strong>Si ce trimestre est haut → le suivant sera probablement haut aussi.</strong>\n\nSérie "lisse", avec inertie. Attention : peut signaler une non-stationnarité.',
-    badge: '🔵 Mémoire positive forte',
+    title: 'Strong persistence',
+    html: `<p>Each value stays close to the one before it.</p>
+           <p><strong>If this quarter is high, the next one will probably be high too.</strong></p>
+           <p>The series looks smooth and carries inertia. Watch out: an acf1 close to 1 can also be a sign of non-stationarity rather than genuine memory.</p>`,
+    badge: 'Strong positive memory',
     color: '#38bdf8'
   };
   if (phi > 0.3) return {
-    title: 'Persistance modérée',
-    text: 'Lien partiel entre valeurs consécutives.\n\n<strong>Le passé influence un peu le futur, mais sans être déterminant.</strong>\n\nSérie avec une légère inertie, souvent stationnaire.',
-    badge: '🟡 Mémoire modérée',
+    title: 'Moderate persistence',
+    html: `<p>Consecutive values are partly linked.</p>
+           <p><strong>The past nudges the future without deciding it.</strong></p>
+           <p>Mild inertia, usually stationary.</p>`,
+    badge: 'Moderate memory',
     color: '#fbbf24'
   };
   if (phi > -0.3) return {
-    title: 'Bruit blanc (ou proche)',
-    text: 'Pas de lien entre valeurs consécutives.\n\n<strong>La valeur de ce trimestre ne dit rien sur le suivant.</strong>\n\nSérie totalement imprévisible à court terme. Typiquement stationnaire.',
-    badge: '⚪ Aucune mémoire',
+    title: 'White noise, or close to it',
+    html: `<p>No link between consecutive values.</p>
+           <p><strong>This quarter tells you nothing about the next one.</strong></p>
+           <p>Unpredictable in the short run, and stationary by construction.</p>`,
+    badge: 'No memory',
     color: '#94a3b8'
   };
   if (phi > -0.7) return {
-    title: 'Oscillation modérée',
-    text: 'Légère tendance à alterner.\n\n<strong>Après une valeur haute, tendance à descendre légèrement.</strong>',
-    badge: '🟠 Légère oscillation',
+    title: 'Moderate oscillation',
+    html: `<p>A mild tendency to alternate.</p>
+           <p><strong>After a high value, the next one tends to drift down.</strong></p>
+           <p>Visible as a slightly jagged line rather than a clean zigzag.</p>`,
+    badge: 'Slight oscillation',
     color: '#fb923c'
   };
   return {
-    title: 'Oscillation forte',
-    text: 'Alternance systématique entre valeurs hautes et basses.\n\n<strong>Haut → Bas → Haut → Bas...</strong>\n\nPattern très régulier, presque mécanique.',
-    badge: '🔴 Oscillation forte',
+    title: 'Strong oscillation',
+    html: `<p>Highs and lows alternate systematically.</p>
+           <p><strong>High, low, high, low.</strong></p>
+           <p>A very regular, almost mechanical pattern. Negative autocorrelation this strong is rare in economic data but common after over-differencing.</p>`,
+    badge: 'Strong oscillation',
     color: '#f87171'
   };
 }
 
-// ---- Main update ----
-let currentSeries = [];
+function seasonCopy(phi) {
+  if (phi > 0.6) return 'Strong seasonality: Q1 looks like last year\'s Q1, Q4 looks like last year\'s Q4. The annual pattern repeats reliably.';
+  if (phi > 0.3) return 'Moderate seasonality: the annual pattern is there, but noise blurs it from one year to the next.';
+  return 'No detectable seasonality: the same quarter in different years tells you nothing new.';
+}
 
-function update() {
-  const phi = parseInt(document.getElementById('acfSlider').value) / 100;
-  document.getElementById('acfDisplay').textContent = phi.toFixed(2);
+/* ------------------------------------------------------------------
+   Rendering
+------------------------------------------------------------------ */
+const el = id => document.getElementById(id);
 
+function renderMain() {
+  const phi = state.phi;
   const interp = getInterpretation(phi);
-  document.getElementById('acfDisplay').style.color = interp.color;
+  const series = generateAR1(state.n, phi, state.seed);
+  const sampleAcf1 = computeACF(series, 1)[0];
 
-  currentSeries = generateAR1(60, phi);
+  el('acfDisplay').textContent = phi.toFixed(2);
+  el('acfDisplay').style.color = interp.color;
+  el('phiReadout').textContent = phi.toFixed(2);
+  el('sampleReadout').textContent = sampleAcf1.toFixed(2);
+  el('nReadout').textContent = state.n;
 
-  drawSeries(document.getElementById('seriesCanvas'), currentSeries, interp.color);
-  drawScatter(document.getElementById('scatterCanvas'), currentSeries, interp.color);
-  drawACFBars(currentSeries);
+  drawSeries(el('seriesCanvas'), series, interp.color);
+  drawScatter(el('scatterCanvas'), series, interp.color);
+  drawACFBars(series, phi, interp.color);
 
-  document.getElementById('interpTitle').textContent = interp.title;
-  document.getElementById('interpTitle').style.color = interp.color;
-  document.getElementById('interpText').innerHTML = interp.text.replace(/\n/g, '<br>');
-  const badge = document.getElementById('interpBadge');
-  badge.textContent = interp.badge;
+  el('interpTitle').textContent = interp.title;
+  el('interpTitle').style.color = interp.color;
+  el('interpText').innerHTML = interp.html;
+
+  const badge = el('interpBadge');
+  el('badgeText').textContent = interp.badge;
   badge.style.background = interp.color + '22';
   badge.style.color = interp.color;
-  badge.style.border = '1px solid ' + interp.color + '44';
+  badge.style.borderColor = interp.color + '44';
+
+  syncPresets(phi);
 }
 
-function updateSeason() {
-  const phi = parseInt(document.getElementById('seasonSlider').value) / 100;
-  document.getElementById('seasonDisplay').textContent = phi.toFixed(2);
-  drawSeasonSeries(phi);
+function renderSeason() {
+  const phi = state.seasonPhi;
+  const series = generateSeasonalAR(SEASON_N, phi, state.seed + 7);
+  const sample = computeACF(series, 4)[3];
 
-  const text = phi > 0.6
-    ? 'Forte saisonnalité : T1 ressemble à T1 de l\'année précédente, T4 ressemble à T4, etc. Les patterns se répètent chaque année.'
-    : phi > 0.3
-    ? 'Saisonnalité modérée : le pattern annuel existe mais avec du bruit.'
-    : 'Pas de saisonnalité détectable : les mêmes trimestres d\'une année à l\'autre ne se ressemblent pas.';
-  document.getElementById('seasonInterp').textContent = text;
+  el('seasonDisplay').textContent = phi.toFixed(2);
+  el('seasonPhiReadout').textContent = phi.toFixed(2);
+  el('seasonSampleReadout').textContent = sample.toFixed(2);
+  el('seasonInterp').textContent = seasonCopy(phi);
+
+  drawSeries(el('seasonCanvas'), series, '#34d399', { period: 4 });
 }
 
-function setPreset(val, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('acfSlider').value = Math.round(val * 100);
-  update();
+function renderAll() {
+  renderMain();
+  renderSeason();
 }
 
-document.getElementById('acfSlider').addEventListener('input', update);
-document.getElementById('seasonSlider').addEventListener('input', updateSeason);
+/* ------------------------------------------------------------------
+   Controls
+------------------------------------------------------------------ */
+function syncPresets(phi) {
+  document.querySelectorAll('.preset').forEach(btn => {
+    const match = Math.abs(parseFloat(btn.dataset.preset) - phi) < 0.005;
+    btn.setAttribute('aria-pressed', match ? 'true' : 'false');
+  });
+}
 
-window.addEventListener('resize', () => { update(); updateSeason(); });
+el('acfSlider').addEventListener('input', e => {
+  state.phi = parseInt(e.target.value, 10) / 100;
+  renderMain();
+});
 
-update();
-updateSeason();
+el('seasonSlider').addEventListener('input', e => {
+  state.seasonPhi = parseInt(e.target.value, 10) / 100;
+  renderSeason();
+});
+
+document.querySelectorAll('.preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.phi = parseFloat(btn.dataset.preset);
+    el('acfSlider').value = Math.round(state.phi * 100);
+    renderMain();
+  });
+});
+
+document.querySelectorAll('.size').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.n = parseInt(btn.dataset.n, 10);
+    document.querySelectorAll('.size').forEach(b =>
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+    renderMain();
+  });
+});
+
+el('reseed').addEventListener('click', () => {
+  state.seed = (state.seed * 1103515245 + 12345) % 2147483647;
+  renderAll();
+});
+
+// redraw at most once per frame while resizing
+let frame = null;
+window.addEventListener('resize', () => {
+  if (frame) return;
+  frame = requestAnimationFrame(() => {
+    frame = null;
+    renderAll();
+  });
+});
+
+// fonts change canvas text metrics, so redraw once they land
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(renderAll);
+}
+
+renderAll();
 </script>
 </body>
 </html>
