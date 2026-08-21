@@ -30,8 +30,21 @@ Developed as a study aid alongside the autocorrelation material in *Forecasting:
 
 The tool runs entirely in the browser as static HTML but is also available locally using the following command :
 
+Windows
+```bash
+git clone https://github.com/AirportSource/autocorrelation-visualizer.git
+cd autocorrelation-visualizer
+start index.html
+```
+macOS
 ```bash
 git clone https://github.com/AirportSource/autocorrelation-visualizer.git
 cd autocorrelation-visualizer
 open index.html
+```
+Linux
+```bash
+git clone https://github.com/AirportSource/autocorrelation-visualizer.git
+cd autocorrelation-visualizer
+xdg-open index.html
 ```
